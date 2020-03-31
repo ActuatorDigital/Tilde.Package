@@ -1,41 +1,46 @@
 ﻿using System;
+using System.IO;
 using UnityEngine;
 
-public class Tilde : MonoBehaviour
-{
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("AIR.Tilde.Tests")]
 
-    public static event Action<string> OnCommand;
+namespace AIR.Tilde {
+    [RequireComponent(typeof(TildeLog))]
+    [RequireComponent(typeof(TildeCmd))]
+    public class Tilde : MonoBehaviour {
+        public static event Action<string> OnCommand;
+        internal static bool Visible = false;
 
-    private bool _visible = false; 
-    private const string CONSOLE_CONTROL_NAME = "console";
+        // private static Tilde Singleton;
+        private static TildeLog _tildeLog;
+        private static TildeCmd _tildeCmd;
 
-    private string _inputText = "";
+        internal static void RunCommand(string command) => OnCommand?.Invoke(command);
+        public static void Log(string logMsg) => _tildeLog.Log(logMsg);
+        public static void LogError(string logErrorMsg) => _tildeLog.LogError(logErrorMsg);
+        public static void LogWarning(string logWarningMsg) => _tildeLog.LogWarning(logWarningMsg);
 
-    private void Update() {
-        if (Input.GetKeyDown(KeyCode.BackQuote)) 
-            _visible = !_visible;
-    }
+        public void Start() {
+            _tildeLog = GetComponent<TildeLog>();
+            _tildeCmd = GetComponent<TildeCmd>();
 
-    private void OnGUI() {
-        if(!_visible) return;
-
-        GUI.FocusControl(CONSOLE_CONTROL_NAME);
-        GUI.SetNextControlName(CONSOLE_CONTROL_NAME);
-        _inputText = GUILayout.TextField(_inputText, GUILayout.Width(Screen.width));
-
-        if (_inputText.Contains("`")) {
-            _inputText = _inputText.Replace("`", "");
-            _visible = false;
+            OnCommand += CheckSaveLog;
         }
 
-        var e = Event.current;
-        if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Return)
-            OnCommand?.Invoke(_inputText);
+        private void CheckSaveLog(string cmd) {
+            if(cmd.ToLower() == "savelog")
+                File.WriteAllText("./log.txt",_tildeLog.LogsToString());
+        }
 
+        private void Update() {
+            if (Input.GetKeyDown(KeyCode.BackQuote))
+                Visible = !Visible;
+        }
+
+        private void OnGUI() {
+            if(!Visible) return;
+            _tildeLog.Draw();
+            _tildeCmd.Draw();
+        }
     }
-
-    // public static void WriteLine(string log) {
-    //     Debug.Log(log);
-    //     throw new NotImplementedException("Show logs in UI.");
-    // }
 }
